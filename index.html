@@ -1,0 +1,985 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <title>Japanese Furigana Reading Support</title>
+
+  <!-- Japanese tokenizer -->
+  <script src="https://cdn.jsdelivr.net/npm/kuromoji@0.1.2/build/kuromoji.js"></script>
+
+  <!-- In-browser OCR for photos -->
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+
+  <style>
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Hiragino Sans",
+        "Yu Gothic", sans-serif;
+      margin: 0;
+      padding: 0;
+      background: #faf8f3;
+      color: #222;
+      overscroll-behavior-x: none;
+    }
+
+    main {
+      max-width: 760px;
+      margin: 0 auto;
+      padding: 12px 16px 96px;
+    }
+
+    h1 {
+      font-size: 20px;
+      margin: 0;
+    }
+
+    h2 {
+      font-size: 20px;
+      margin-top: 0;
+    }
+
+    p {
+      line-height: 1.6;
+    }
+
+    section {
+      margin-top: 12px;
+      padding: 16px;
+      background: white;
+      border-radius: 12px;
+      border: 1px solid #ddd;
+    }
+
+    .app-header {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      padding: max(14px, env(safe-area-inset-top)) 18px 14px;
+      background: rgba(250, 248, 243, 0.96);
+      border-bottom: 1px solid #e1ded7;
+      backdrop-filter: blur(12px);
+    }
+
+    .app-header-inner {
+      max-width: 760px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .page-indicator {
+      color: #777;
+      font-size: 13px;
+      white-space: nowrap;
+    }
+
+    .app-page {
+      display: none;
+      animation: page-in 180ms ease-out;
+    }
+
+    .app-page.active {
+      display: block;
+    }
+
+    @keyframes page-in {
+      from { opacity: 0; transform: translateX(8px); }
+      to { opacity: 1; transform: translateX(0); }
+    }
+
+    .intro {
+      margin: 4px 2px 14px;
+      color: #555;
+      font-size: 15px;
+    }
+
+    .bottom-nav {
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      z-index: 20;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      padding: 7px 10px max(7px, env(safe-area-inset-bottom));
+      background: rgba(255, 255, 255, 0.96);
+      border-top: 1px solid #ddd;
+      backdrop-filter: blur(12px);
+    }
+
+    .nav-btn {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+      margin: 0;
+      padding: 7px 4px;
+      color: #777;
+      background: transparent;
+      font-size: 12px;
+    }
+
+    .nav-btn .nav-icon {
+      font-size: 20px;
+      line-height: 1;
+    }
+
+    .nav-btn.active {
+      color: #222;
+      background: #f0eee9;
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 180px;
+      font-size: 17px;
+      line-height: 1.7;
+      padding: 12px;
+      box-sizing: border-box;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+      resize: vertical;
+      font-family: inherit;
+    }
+
+    button {
+      font-size: 16px;
+      padding: 10px 14px;
+      border: none;
+      border-radius: 8px;
+      background: #222;
+      color: white;
+      cursor: pointer;
+      margin-top: 12px;
+      margin-right: 8px;
+    }
+
+    button:disabled {
+      background: #aaa;
+      cursor: not-allowed;
+    }
+
+    .secondary-btn {
+      background: #eee;
+      color: #222;
+    }
+
+    .danger-btn {
+      background: #b83232;
+      color: white;
+    }
+
+    .status {
+      color: #666;
+      font-size: 14px;
+      margin-top: 10px;
+    }
+
+    #readingText {
+      font-size: 22px;
+      line-height: 2.4;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    ruby {
+      ruby-position: over;
+    }
+
+    rt {
+      font-size: 0.55em;
+      color: #555;
+    }
+
+    .word-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 0;
+      border-bottom: 1px solid #eee;
+    }
+
+    .word-main {
+      font-size: 18px;
+    }
+
+    .word-reading {
+      color: #666;
+      margin-left: 8px;
+    }
+
+    .small {
+      font-size: 14px;
+      color: #666;
+    }
+
+    .controls {
+      margin-top: 12px;
+    }
+
+    .photo-tools {
+      margin: 12px 0 16px;
+      padding: 12px;
+      border-radius: 8px;
+      background: #fafafa;
+      border: 1px solid #e2e2e2;
+    }
+
+    .photo-tools button {
+      margin-top: 0;
+    }
+
+    .photo-controls {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .photo-tools select {
+      font: inherit;
+      padding: 9px 10px;
+      margin-right: 8px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      background: white;
+    }
+
+    #photoPreview {
+      display: none;
+      width: 100%;
+      max-height: 320px;
+      margin-top: 12px;
+      border-radius: 8px;
+      object-fit: contain;
+      background: #eee;
+    }
+
+    .photo-note {
+      margin: 8px 0 0;
+    }
+
+    .empty {
+      color: #777;
+      font-size: 15px;
+    }
+
+    @media (min-width: 700px) {
+      main {
+        padding-top: 20px;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .app-page {
+        animation: none;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <header class="app-header">
+    <div class="app-header-inner">
+      <h1>Japanese Reading Support</h1>
+      <span id="pageIndicator" class="page-indicator">Text · 1 of 3</span>
+    </div>
+  </header>
+
+  <main id="appPages">
+    <div id="textPage" class="app-page active" data-title="Text" role="tabpanel">
+      <p class="intro">Paste text or photograph a book page, then prepare it for reading.</p>
+      <section>
+      <h2>Add Japanese Text</h2>
+
+      <div class="photo-tools">
+        <input
+          id="photoInput"
+          type="file"
+          accept="image/*"
+          capture="environment"
+          hidden
+        />
+        <div class="photo-controls">
+          <label for="textDirection" class="small">Page text:</label>
+          <select id="textDirection">
+            <option value="jpn">Horizontal</option>
+            <option value="jpn_vert">Vertical</option>
+          </select>
+          <button id="takePhotoBtn" class="secondary-btn">Take or Choose Photo</button>
+        </div>
+        <p class="small photo-note">
+          Photograph one page in good light. Text recognition runs on this device and may take a moment.
+        </p>
+        <img id="photoPreview" alt="Selected book page preview" />
+      </div>
+
+      <textarea
+        id="inputText"
+        placeholder="Paste Japanese text here, or take a photo to recognize it..."
+      ></textarea>
+
+      <div class="controls">
+        <button id="generateBtn">Generate Reading Page</button>
+        <button id="pasteBtn" class="secondary-btn">Paste From Clipboard</button>
+        <button id="clearInputBtn" class="secondary-btn">Clear Text</button>
+      </div>
+
+      <div id="status" class="status">Loading Japanese tokenizer...</div>
+      </section>
+    </div>
+
+    <div id="readingPage" class="app-page" data-title="Reading" role="tabpanel" hidden>
+      <section>
+      <h2>Reading Page</h2>
+
+      <p class="small">
+        This is the main reading support page. Check this while reading your physical book.
+      </p>
+
+      <div class="controls">
+        <button id="increaseTextBtn" class="secondary-btn">Text +</button>
+        <button id="decreaseTextBtn" class="secondary-btn">Text -</button>
+        <button id="toggleFuriganaBtn" class="secondary-btn">Hide Furigana</button>
+      </div>
+
+      <div id="readingText" style="margin-top: 20px;"></div>
+      </section>
+    </div>
+
+    <div id="wordsPage" class="app-page" data-title="Words" role="tabpanel" hidden>
+      <section>
+      <h2>Saved Words</h2>
+
+      <p class="small">
+        All kanji-containing words are saved automatically. Delete words you do not need later.
+      </p>
+
+      <div class="controls">
+        <button id="clearWordsBtn" class="danger-btn">Clear All Saved Words</button>
+      </div>
+
+      <div id="savedWords" style="margin-top: 12px;"></div>
+      </section>
+    </div>
+  </main>
+
+  <nav class="bottom-nav" aria-label="App pages">
+    <button class="nav-btn active" data-page="0" aria-label="Add text" aria-current="page">
+      <span class="nav-icon" aria-hidden="true">＋</span>
+      <span>Text</span>
+    </button>
+    <button class="nav-btn" data-page="1" aria-label="Reading page">
+      <span class="nav-icon" aria-hidden="true">本</span>
+      <span>Reading</span>
+    </button>
+    <button class="nav-btn" data-page="2" aria-label="Saved words">
+      <span class="nav-icon" aria-hidden="true">語</span>
+      <span>Words</span>
+    </button>
+  </nav>
+
+  <script>
+    const inputTextEl = document.getElementById("inputText");
+    const generateBtn = document.getElementById("generateBtn");
+    const pasteBtn = document.getElementById("pasteBtn");
+    const takePhotoBtn = document.getElementById("takePhotoBtn");
+    const photoInput = document.getElementById("photoInput");
+    const photoPreview = document.getElementById("photoPreview");
+    const textDirection = document.getElementById("textDirection");
+    const clearInputBtn = document.getElementById("clearInputBtn");
+    const statusEl = document.getElementById("status");
+    const readingTextEl = document.getElementById("readingText");
+    const savedWordsEl = document.getElementById("savedWords");
+    const clearWordsBtn = document.getElementById("clearWordsBtn");
+    const increaseTextBtn = document.getElementById("increaseTextBtn");
+    const decreaseTextBtn = document.getElementById("decreaseTextBtn");
+    const toggleFuriganaBtn = document.getElementById("toggleFuriganaBtn");
+    const appPagesEl = document.getElementById("appPages");
+    const appPageEls = [...document.querySelectorAll(".app-page")];
+    const navButtons = [...document.querySelectorAll(".nav-btn")];
+    const pageIndicator = document.getElementById("pageIndicator");
+
+    const STORAGE_KEY = "furigana-reading-support-saved-words";
+
+    let tokenizer = null;
+    let currentRubyTokens = [];
+    let showFurigana = true;
+    let readingFontSize = 22;
+    let photoObjectUrl = "";
+    let isRecognizingPhoto = false;
+    let currentPageIndex = 0;
+    let touchStartX = null;
+    let touchStartY = null;
+    const pageScrollPositions = [0, 0, 0];
+
+    generateBtn.disabled = true;
+
+    initTokenizer();
+    renderSavedWords();
+    renderRubyText([]);
+    initializeNavigation();
+
+    function initializeNavigation() {
+      navButtons.forEach((button) => {
+        button.addEventListener("click", () => {
+          showPage(Number(button.dataset.page));
+        });
+      });
+
+      appPagesEl.addEventListener("touchstart", handleTouchStart, { passive: true });
+      appPagesEl.addEventListener("touchend", handleTouchEnd, { passive: true });
+
+      window.addEventListener("hashchange", () => {
+        const hashIndex = getPageIndexFromHash();
+        if (hashIndex !== currentPageIndex) showPage(hashIndex, false);
+      });
+
+      showPage(getPageIndexFromHash(), false);
+    }
+
+    function getPageIndexFromHash() {
+      const pageNames = ["text", "reading", "words"];
+      const index = pageNames.indexOf(location.hash.slice(1));
+      return index === -1 ? 0 : index;
+    }
+
+    function showPage(pageIndex, updateHash = true) {
+      const nextIndex = Math.max(0, Math.min(appPageEls.length - 1, pageIndex));
+      pageScrollPositions[currentPageIndex] = window.scrollY;
+      currentPageIndex = nextIndex;
+
+      appPageEls.forEach((page, index) => {
+        const isActive = index === currentPageIndex;
+        page.classList.toggle("active", isActive);
+        page.hidden = !isActive;
+      });
+
+      navButtons.forEach((button, index) => {
+        const isActive = index === currentPageIndex;
+        button.classList.toggle("active", isActive);
+        button.toggleAttribute("aria-current", isActive);
+      });
+
+      const title = appPageEls[currentPageIndex].dataset.title;
+      pageIndicator.textContent = `${title} · ${currentPageIndex + 1} of ${appPageEls.length}`;
+
+      if (updateHash) {
+        const pageNames = ["text", "reading", "words"];
+        const nextHash = `#${pageNames[currentPageIndex]}`;
+        if (location.hash !== nextHash) history.pushState(null, "", nextHash);
+      }
+
+      requestAnimationFrame(() => window.scrollTo(0, pageScrollPositions[currentPageIndex]));
+    }
+
+    function handleTouchStart(event) {
+      if (event.touches.length !== 1) return;
+
+      if (event.target.closest("textarea, input, select, button, a")) {
+        touchStartX = null;
+        touchStartY = null;
+        return;
+      }
+
+      touchStartX = event.touches[0].clientX;
+      touchStartY = event.touches[0].clientY;
+    }
+
+    function handleTouchEnd(event) {
+      if (touchStartX === null || event.changedTouches.length !== 1) return;
+
+      const deltaX = event.changedTouches[0].clientX - touchStartX;
+      const deltaY = event.changedTouches[0].clientY - touchStartY;
+      touchStartX = null;
+      touchStartY = null;
+
+      if (Math.abs(deltaX) < 55 || Math.abs(deltaX) < Math.abs(deltaY) * 1.2) return;
+
+      showPage(currentPageIndex + (deltaX < 0 ? 1 : -1));
+    }
+
+    function initTokenizer() {
+      setStatus("Loading Japanese tokenizer...");
+
+      kuromoji
+        .builder({
+          dicPath: "https://cdn.jsdelivr.net/npm/kuromoji@0.1.2/dict/",
+        })
+        .build((err, builtTokenizer) => {
+          if (err) {
+            console.error(err);
+            setStatus("Failed to load tokenizer. Please check the console.");
+            return;
+          }
+
+          tokenizer = builtTokenizer;
+          generateBtn.disabled = false;
+          setStatus("Ready. Add Japanese text and generate the reading page.");
+        });
+    }
+
+    generateBtn.addEventListener("click", () => {
+      const text = inputTextEl.value.trim();
+
+      if (!text) {
+        alert("Please add Japanese text first.");
+        return;
+      }
+
+      generateReadingPage(text);
+    });
+
+    pasteBtn.addEventListener("click", async () => {
+      try {
+        const clipboardText = await navigator.clipboard.readText();
+        inputTextEl.value = clipboardText;
+        setStatus("Text pasted from clipboard.");
+      } catch (error) {
+        console.error(error);
+        alert("Clipboard paste failed. Please paste manually.");
+      }
+    });
+
+    takePhotoBtn.addEventListener("click", () => {
+      if (!isRecognizingPhoto) photoInput.click();
+    });
+
+    photoInput.addEventListener("change", async () => {
+      const imageFile = photoInput.files && photoInput.files[0];
+      if (!imageFile) return;
+
+      showPhotoPreview(imageFile);
+      await recognizePhotoText(imageFile);
+    });
+
+    clearInputBtn.addEventListener("click", () => {
+      inputTextEl.value = "";
+      readingTextEl.innerHTML = "";
+      currentRubyTokens = [];
+      clearPhoto();
+      setStatus("Input cleared.");
+    });
+
+    function showPhotoPreview(imageFile) {
+      if (photoObjectUrl) URL.revokeObjectURL(photoObjectUrl);
+
+      photoObjectUrl = URL.createObjectURL(imageFile);
+      photoPreview.src = photoObjectUrl;
+      photoPreview.style.display = "block";
+    }
+
+    async function recognizePhotoText(imageFile) {
+      if (!window.Tesseract) {
+        alert("Photo text recognition could not load. Please check your internet connection and try again.");
+        return;
+      }
+
+      isRecognizingPhoto = true;
+      takePhotoBtn.disabled = true;
+      takePhotoBtn.textContent = "Recognizing Text...";
+      setStatus("Preparing Japanese text recognition...");
+
+      try {
+        const result = await Tesseract.recognize(imageFile, textDirection.value, {
+          logger: (progress) => {
+            if (progress.status === "recognizing text") {
+              const percent = Math.round((progress.progress || 0) * 100);
+              setStatus(`Recognizing Japanese text... ${percent}%`);
+            }
+          },
+        });
+
+        const recognizedText = result.data.text.trim();
+
+        if (!recognizedText) {
+          setStatus("No text was found. Try a closer, brighter, straighter photo.");
+          alert("No Japanese text was found in this photo.");
+          return;
+        }
+
+        inputTextEl.value = recognizedText;
+        inputTextEl.focus();
+        setStatus("Photo text is ready. Check any recognition mistakes, then generate the reading page.");
+      } catch (error) {
+        console.error(error);
+        setStatus("Photo recognition failed. Try another photo or paste the text instead.");
+        alert("Could not recognize this photo. Please try a clearer image.");
+      } finally {
+        isRecognizingPhoto = false;
+        takePhotoBtn.disabled = false;
+        takePhotoBtn.textContent = "Retake or Choose Another Photo";
+      }
+    }
+
+    function clearPhoto() {
+      photoInput.value = "";
+      photoPreview.removeAttribute("src");
+      photoPreview.style.display = "none";
+      takePhotoBtn.textContent = "Take or Choose Photo";
+
+      if (photoObjectUrl) {
+        URL.revokeObjectURL(photoObjectUrl);
+        photoObjectUrl = "";
+      }
+    }
+
+    clearWordsBtn.addEventListener("click", () => {
+      const confirmed = confirm("Clear all saved words?");
+
+      if (!confirmed) return;
+
+      localStorage.removeItem(STORAGE_KEY);
+      renderSavedWords();
+    });
+
+    increaseTextBtn.addEventListener("click", () => {
+      readingFontSize += 2;
+      updateReadingFontSize();
+    });
+
+    decreaseTextBtn.addEventListener("click", () => {
+      readingFontSize = Math.max(14, readingFontSize - 2);
+      updateReadingFontSize();
+    });
+
+    toggleFuriganaBtn.addEventListener("click", () => {
+      showFurigana = !showFurigana;
+
+      toggleFuriganaBtn.textContent = showFurigana
+        ? "Hide Furigana"
+        : "Show Furigana";
+
+      renderRubyText(currentRubyTokens);
+    });
+
+    function generateReadingPage(text) {
+      if (!tokenizer) {
+        alert("Tokenizer is not ready yet.");
+        return;
+      }
+
+      setStatus("Generating furigana...");
+
+      const tokens = tokenizer.tokenize(text);
+
+      currentRubyTokens = buildRubyTokens(text, tokens);
+
+      renderRubyText(currentRubyTokens);
+      saveExtractedWords(currentRubyTokens);
+      renderSavedWords();
+
+      setStatus("Reading page is ready. Words were saved automatically.");
+      pageScrollPositions[1] = 0;
+      showPage(1);
+    }
+
+    function buildRubyTokens(originalText, tokens) {
+      const baseTokens = [];
+      let currentIndex = 0;
+
+      tokens.forEach((token) => {
+        const surface = token.surface_form;
+
+        // kuromoji word_position is 1-based.
+        const tokenStartIndex = token.word_position - 1;
+        const tokenEndIndex = tokenStartIndex + surface.length;
+
+        // Preserve spaces, line breaks, punctuation, or text not returned as normal tokens.
+        if (tokenStartIndex > currentIndex) {
+          baseTokens.push({
+            surface: originalText.slice(currentIndex, tokenStartIndex),
+            reading: "",
+            hasKanji: false,
+            dictionaryForm: "",
+            partOfSpeech: "",
+            startIndex: currentIndex,
+            endIndex: tokenStartIndex,
+            isGap: true,
+          });
+        }
+
+        baseTokens.push({
+          surface: surface,
+          reading: getTokenReading(token),
+          hasKanji: hasKanji(surface),
+          dictionaryForm: token.basic_form,
+          partOfSpeech: token.pos,
+          startIndex: tokenStartIndex,
+          endIndex: tokenEndIndex,
+          isGap: false,
+        });
+
+        currentIndex = tokenEndIndex;
+      });
+
+      // Preserve remaining text after the final token.
+      if (currentIndex < originalText.length) {
+        baseTokens.push({
+          surface: originalText.slice(currentIndex),
+          reading: "",
+          hasKanji: false,
+          dictionaryForm: "",
+          partOfSpeech: "",
+          startIndex: currentIndex,
+          endIndex: originalText.length,
+          isGap: true,
+        });
+      }
+
+      return mergeOkuriganaTokens(baseTokens);
+    }
+
+    function mergeOkuriganaTokens(tokens) {
+      const mergedTokens = [];
+
+      for (let i = 0; i < tokens.length; i++) {
+        let current = { ...tokens[i] };
+
+        while (
+          i + 1 < tokens.length &&
+          shouldAttachNextHiraganaToken(current, tokens[i + 1])
+        ) {
+          const next = tokens[i + 1];
+
+          current.surface += next.surface;
+          current.reading += next.reading || next.surface;
+          current.hasKanji = hasKanji(current.surface);
+          current.endIndex = next.endIndex;
+
+          // For this prototype, keep the dictionary form as the visible merged form.
+          // Example: 定 + める becomes 定める.
+          current.dictionaryForm = current.surface;
+
+          i++;
+        }
+
+        mergedTokens.push(current);
+      }
+
+      return mergedTokens;
+    }
+
+    function shouldAttachNextHiraganaToken(current, next) {
+      if (!current.hasKanji) return false;
+      if (current.isGap || next.isGap) return false;
+      if (!isOnlyHiragana(next.surface)) return false;
+
+      // Only merge when tokens are directly connected in the original text.
+      if (current.endIndex !== next.startIndex) return false;
+
+      // Do not attach common particles.
+      // Example: 経験 + を should stay 経験 / を, not 経験を.
+      const particlesAndStops = new Set([
+        "は",
+        "が",
+        "を",
+        "に",
+        "へ",
+        "で",
+        "と",
+        "の",
+        "も",
+        "や",
+        "か",
+        "ね",
+        "よ",
+        "ぞ",
+        "ぜ",
+        "わ",
+        "から",
+        "まで",
+        "より",
+        "ほど",
+        "だけ",
+        "しか",
+        "など",
+        "でも",
+        "なら",
+        "ので",
+        "のに",
+      ]);
+
+      if (particlesAndStops.has(next.surface)) return false;
+
+      // Avoid merging nouns with polite endings like 本 + です.
+      if (current.partOfSpeech === "名詞" && next.partOfSpeech === "助動詞") {
+        return false;
+      }
+
+      // Avoid punctuation and particles.
+      if (next.partOfSpeech === "助詞") return false;
+      if (next.partOfSpeech === "記号") return false;
+
+      return true;
+    }
+
+    function renderRubyText(tokens) {
+      readingTextEl.innerHTML = "";
+
+      if (!tokens || tokens.length === 0) {
+        readingTextEl.innerHTML = '<p class="empty">No reading page generated yet.</p>';
+        return;
+      }
+
+      tokens.forEach((token) => {
+        if (token.hasKanji && token.reading && showFurigana) {
+          const ruby = document.createElement("ruby");
+
+          const rbText = document.createTextNode(token.surface);
+          const rt = document.createElement("rt");
+
+          rt.textContent = token.reading;
+
+          ruby.appendChild(rbText);
+          ruby.appendChild(rt);
+
+          readingTextEl.appendChild(ruby);
+        } else {
+          readingTextEl.appendChild(document.createTextNode(token.surface));
+        }
+      });
+
+      updateReadingFontSize();
+    }
+
+    function saveExtractedWords(tokens) {
+      const savedWords = loadSavedWords();
+
+      const wordsFromCurrentText = tokens
+        .filter((token) => token.hasKanji && token.reading)
+        .map((token) => ({
+          id: createWordId(token.surface, token.reading),
+          surface: token.surface,
+          reading: token.reading,
+          dictionaryForm: token.dictionaryForm || token.surface,
+          partOfSpeech: token.partOfSpeech || "",
+          createdAt: new Date().toISOString(),
+          lastSeenAt: new Date().toISOString(),
+          deleted: false,
+        }));
+
+      wordsFromCurrentText.forEach((newWord) => {
+        const existingWord = savedWords.find((word) => word.id === newWord.id);
+
+        if (existingWord) {
+          existingWord.deleted = false;
+          existingWord.lastSeenAt = new Date().toISOString();
+        } else {
+          savedWords.push(newWord);
+        }
+      });
+
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(savedWords));
+    }
+
+    function renderSavedWords() {
+      const savedWords = loadSavedWords().filter((word) => !word.deleted);
+
+      savedWordsEl.innerHTML = "";
+
+      if (savedWords.length === 0) {
+        savedWordsEl.innerHTML = '<p class="empty">No saved words yet.</p>';
+        return;
+      }
+
+      savedWords.forEach((word) => {
+        const item = document.createElement("div");
+        item.className = "word-item";
+
+        const text = document.createElement("div");
+        text.className = "word-main";
+
+        const surface = document.createElement("strong");
+        surface.textContent = word.surface;
+
+        const reading = document.createElement("span");
+        reading.className = "word-reading";
+        reading.textContent = word.reading;
+
+        text.appendChild(surface);
+        text.appendChild(reading);
+
+        const deleteButton = document.createElement("button");
+        deleteButton.className = "secondary-btn";
+        deleteButton.textContent = "Delete";
+
+        deleteButton.addEventListener("click", () => {
+          deleteSavedWord(word.id);
+        });
+
+        item.appendChild(text);
+        item.appendChild(deleteButton);
+
+        savedWordsEl.appendChild(item);
+      });
+    }
+
+    function deleteSavedWord(id) {
+      const savedWords = loadSavedWords();
+      const target = savedWords.find((word) => word.id === id);
+
+      if (target) {
+        target.deleted = true;
+      }
+
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(savedWords));
+      renderSavedWords();
+    }
+
+    function loadSavedWords() {
+      const raw = localStorage.getItem(STORAGE_KEY);
+
+      if (!raw) return [];
+
+      try {
+        return JSON.parse(raw);
+      } catch {
+        return [];
+      }
+    }
+
+    function createWordId(surface, reading) {
+      return `${surface}__${reading}`;
+    }
+
+    function hasKanji(text) {
+      return /[\u3400-\u4DBF\u4E00-\u9FFF々〆ヵヶ]/.test(text);
+    }
+
+    function isOnlyHiragana(text) {
+      return /^[ぁ-んー]+$/.test(text);
+    }
+
+    function getTokenReading(token) {
+      if (token.reading) {
+        return katakanaToHiragana(token.reading);
+      }
+
+      if (isOnlyHiragana(token.surface_form)) {
+        return token.surface_form;
+      }
+
+      return "";
+    }
+
+    function katakanaToHiragana(text) {
+      return text.replace(/[\u30a1-\u30f6]/g, (char) =>
+        String.fromCharCode(char.charCodeAt(0) - 0x60)
+      );
+    }
+
+    function updateReadingFontSize() {
+      readingTextEl.style.fontSize = `${readingFontSize}px`;
+    }
+
+    function setStatus(message) {
+      statusEl.textContent = message;
+    }
+  </script>
+</body>
+</html>
