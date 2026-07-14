@@ -6,18 +6,6 @@
 
   <title>Japanese Reading Support</title>
 
-  <!-- Japanese tokenizer with CDN fallback -->
-  <script
-    src="https://cdn.jsdelivr.net/npm/kuromoji@0.1.2/build/kuromoji.js"
-    onerror="this.onerror=null; this.src='https://unpkg.com/kuromoji@0.1.2/build/kuromoji.js';"
-  ></script>
-
-  <!-- Optional in-browser OCR for photos -->
-  <script
-    src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"
-    onerror="console.warn('Tesseract failed to load. Photo OCR will not work, but pasted text still works.');"
-  ></script>
-
   <style>
     body {
       font-family: system-ui, -apple-system, BlinkMacSystemFont, "Hiragino Sans",
@@ -26,7 +14,6 @@
       padding: 0;
       background: #faf8f3;
       color: #222;
-      overscroll-behavior-x: none;
     }
 
     main {
@@ -61,7 +48,7 @@
       position: sticky;
       top: 0;
       z-index: 10;
-      padding: max(14px, env(safe-area-inset-top)) 18px 14px;
+      padding: 14px 18px;
       background: rgba(250, 248, 243, 0.96);
       border-bottom: 1px solid #e1ded7;
       backdrop-filter: blur(12px);
@@ -84,23 +71,10 @@
 
     .app-page {
       display: none;
-      animation: page-in 180ms ease-out;
     }
 
     .app-page.active {
       display: block;
-    }
-
-    @keyframes page-in {
-      from {
-        opacity: 0;
-        transform: translateX(8px);
-      }
-
-      to {
-        opacity: 1;
-        transform: translateX(0);
-      }
     }
 
     .intro {
@@ -109,45 +83,9 @@
       font-size: 15px;
     }
 
-    .bottom-nav {
-      position: fixed;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      z-index: 20;
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      padding: 7px 10px max(7px, env(safe-area-inset-bottom));
-      background: rgba(255, 255, 255, 0.96);
-      border-top: 1px solid #ddd;
-      backdrop-filter: blur(12px);
-    }
-
-    .nav-btn {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 2px;
-      margin: 0;
-      padding: 7px 4px;
-      color: #777;
-      background: transparent;
-      font-size: 12px;
-    }
-
-    .nav-btn .nav-icon {
-      font-size: 20px;
-      line-height: 1;
-    }
-
-    .nav-btn.active {
-      color: #222;
-      background: #f0eee9;
-    }
-
     textarea {
       width: 100%;
-      min-height: 180px;
+      min-height: 220px;
       font-size: 17px;
       line-height: 1.7;
       padding: 12px;
@@ -185,10 +123,47 @@
       color: white;
     }
 
+    .bottom-nav {
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      z-index: 20;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      padding: 7px 10px;
+      background: rgba(255, 255, 255, 0.96);
+      border-top: 1px solid #ddd;
+      backdrop-filter: blur(12px);
+    }
+
+    .nav-btn {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+      margin: 0;
+      padding: 7px 4px;
+      color: #777;
+      background: transparent;
+      font-size: 12px;
+    }
+
+    .nav-btn.active {
+      color: #222;
+      background: #f0eee9;
+    }
+
+    .nav-icon {
+      font-size: 20px;
+      line-height: 1;
+    }
+
     .status {
       color: #666;
       font-size: 14px;
       margin-top: 10px;
+      line-height: 1.5;
     }
 
     .debug-log {
@@ -242,63 +217,15 @@
       margin-top: 12px;
     }
 
-    .photo-tools {
-      margin: 12px 0 16px;
-      padding: 12px;
-      border-radius: 8px;
-      background: #fafafa;
-      border: 1px solid #e2e2e2;
-    }
-
-    .photo-tools button {
-      margin-top: 0;
-    }
-
-    .photo-controls {
-      display: flex;
-      flex-wrap: wrap;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .photo-tools select {
-      font: inherit;
-      padding: 9px 10px;
-      margin-right: 8px;
-      border: 1px solid #ccc;
-      border-radius: 8px;
-      background: white;
-    }
-
-    #photoPreview {
-      display: none;
-      width: 100%;
-      max-height: 320px;
-      margin-top: 12px;
-      border-radius: 8px;
-      object-fit: contain;
-      background: #eee;
-    }
-
-    .photo-note {
-      margin: 8px 0 0;
-    }
-
     .empty {
       color: #777;
       font-size: 15px;
     }
 
-    @media (min-width: 700px) {
-      main {
-        padding-top: 20px;
-      }
-    }
-
-    @media (prefers-reduced-motion: reduce) {
-      .app-page {
-        animation: none;
-      }
+    .version {
+      color: #b83232;
+      font-size: 13px;
+      margin: 8px 0 0;
     }
   </style>
 </head>
@@ -312,38 +239,15 @@
   </header>
 
   <main id="appPages">
-    <div id="textPage" class="app-page active" data-title="Text" role="tabpanel">
-      <p class="intro">Paste Japanese text, then prepare it for reading.</p>
+    <p class="version">Version: no-photo-debug-20260714-01</p>
+
+    <div id="textPage" class="app-page active" data-title="Text">
+      <p class="intro">
+        Paste Japanese text copied with Apple Live Text, then prepare it for reading.
+      </p>
 
       <section>
         <h2>Add Japanese Text</h2>
-
-        <div class="photo-tools">
-          <input
-            id="photoInput"
-            type="file"
-            accept="image/*"
-            capture="environment"
-            hidden
-          />
-
-          <div class="photo-controls">
-            <label for="textDirection" class="small">Page text:</label>
-
-            <select id="textDirection">
-              <option value="jpn">Horizontal</option>
-              <option value="jpn_vert">Vertical</option>
-            </select>
-
-            <button id="takePhotoBtn" class="secondary-btn">Take or Choose Photo</button>
-          </div>
-
-          <p class="small photo-note">
-            Photo recognition is optional. If it does not work, use Apple Live Text and paste the text below.
-          </p>
-
-          <img id="photoPreview" alt="Selected book page preview" />
-        </div>
 
         <textarea
           id="inputText"
@@ -351,7 +255,7 @@
         ></textarea>
 
         <div class="controls">
-          <button id="generateBtn">Generate Reading Page</button>
+          <button id="generateBtn" disabled>Generate Reading Page</button>
           <button id="pasteBtn" class="secondary-btn">Paste From Clipboard</button>
           <button id="clearInputBtn" class="secondary-btn">Clear Text</button>
         </div>
@@ -361,7 +265,7 @@
       </section>
     </div>
 
-    <div id="readingPage" class="app-page" data-title="Reading" role="tabpanel" hidden>
+    <div id="readingPage" class="app-page" data-title="Reading">
       <section>
         <h2>Reading Page</h2>
 
@@ -379,7 +283,7 @@
       </section>
     </div>
 
-    <div id="wordsPage" class="app-page" data-title="Words" role="tabpanel" hidden>
+    <div id="wordsPage" class="app-page" data-title="Words">
       <section>
         <h2>Saved Words</h2>
 
@@ -397,18 +301,18 @@
   </main>
 
   <nav class="bottom-nav" aria-label="App pages">
-    <button class="nav-btn active" data-page="0" aria-label="Add text" aria-current="page">
-      <span class="nav-icon" aria-hidden="true">＋</span>
+    <button class="nav-btn active" data-page="0" aria-label="Add text">
+      <span class="nav-icon">＋</span>
       <span>Text</span>
     </button>
 
     <button class="nav-btn" data-page="1" aria-label="Reading page">
-      <span class="nav-icon" aria-hidden="true">本</span>
+      <span class="nav-icon">本</span>
       <span>Reading</span>
     </button>
 
     <button class="nav-btn" data-page="2" aria-label="Saved words">
-      <span class="nav-icon" aria-hidden="true">語</span>
+      <span class="nav-icon">語</span>
       <span>Words</span>
     </button>
   </nav>
@@ -417,10 +321,6 @@
     const inputTextEl = document.getElementById("inputText");
     const generateBtn = document.getElementById("generateBtn");
     const pasteBtn = document.getElementById("pasteBtn");
-    const takePhotoBtn = document.getElementById("takePhotoBtn");
-    const photoInput = document.getElementById("photoInput");
-    const photoPreview = document.getElementById("photoPreview");
-    const textDirection = document.getElementById("textDirection");
     const clearInputBtn = document.getElementById("clearInputBtn");
     const statusEl = document.getElementById("status");
     const debugLogEl = document.getElementById("debugLog");
@@ -430,7 +330,6 @@
     const increaseTextBtn = document.getElementById("increaseTextBtn");
     const decreaseTextBtn = document.getElementById("decreaseTextBtn");
     const toggleFuriganaBtn = document.getElementById("toggleFuriganaBtn");
-    const appPagesEl = document.getElementById("appPages");
     const appPageEls = [...document.querySelectorAll(".app-page")];
     const navButtons = [...document.querySelectorAll(".nav-btn")];
     const pageIndicator = document.getElementById("pageIndicator");
@@ -441,36 +340,29 @@
     let currentRubyTokens = [];
     let showFurigana = true;
     let readingFontSize = 22;
-    let photoObjectUrl = "";
-    let isRecognizingPhoto = false;
     let currentPageIndex = 0;
-    let touchStartX = null;
-    let touchStartY = null;
-
-    const pageScrollPositions = [0, 0, 0];
-
-    generateBtn.disabled = true;
 
     window.addEventListener("error", (event) => {
       showDebugError(event.message);
     });
 
     window.addEventListener("unhandledrejection", (event) => {
-      const message = event.reason && event.reason.message
-        ? event.reason.message
-        : String(event.reason);
-
-      showDebugError(message);
+      showDebugError(event.reason?.message || String(event.reason));
     });
 
-    // Important:
-    // Initialize UI first, then load tokenizer.
-    // This prevents the whole app from becoming static if Kuromoji fails.
-    renderSavedWords();
-    renderRubyText([]);
-    initializeNavigation();
-    initializeBasicActions();
-    initTokenizer();
+    startApp();
+
+    function startApp() {
+      setStatus("JavaScript is running. Initializing UI...");
+
+      initializeNavigation();
+      initializeActions();
+      renderSavedWords();
+      renderRubyText([]);
+
+      setStatus("UI is ready. Loading Japanese tokenizer...");
+      loadKuromojiScript();
+    }
 
     function initializeNavigation() {
       navButtons.forEach((button) => {
@@ -479,25 +371,15 @@
         });
       });
 
-      appPagesEl.addEventListener("touchstart", handleTouchStart, { passive: true });
-      appPagesEl.addEventListener("touchend", handleTouchEnd, { passive: true });
-
-      window.addEventListener("hashchange", () => {
-        const hashIndex = getPageIndexFromHash();
-        if (hashIndex !== currentPageIndex) {
-          showPage(hashIndex, false);
-        }
-      });
-
-      showPage(getPageIndexFromHash(), false);
+      showPage(0, false);
     }
 
-    function initializeBasicActions() {
+    function initializeActions() {
       generateBtn.addEventListener("click", () => {
         const text = inputTextEl.value.trim();
 
         if (!text) {
-          alert("Please add Japanese text first.");
+          alert("Please paste Japanese text first.");
           return;
         }
 
@@ -515,38 +397,20 @@
           inputTextEl.value = clipboardText;
           setStatus("Text pasted from clipboard.");
         } catch (error) {
-          console.error(error);
           showDebugError(error.message || String(error));
           alert("Clipboard paste failed. Please paste manually.");
         }
       });
 
-      takePhotoBtn.addEventListener("click", () => {
-        if (!isRecognizingPhoto) {
-          photoInput.click();
-        }
-      });
-
-      photoInput.addEventListener("change", async () => {
-        const imageFile = photoInput.files && photoInput.files[0];
-
-        if (!imageFile) return;
-
-        showPhotoPreview(imageFile);
-        await recognizePhotoText(imageFile);
-      });
-
       clearInputBtn.addEventListener("click", () => {
         inputTextEl.value = "";
-        readingTextEl.innerHTML = "";
         currentRubyTokens = [];
-        clearPhoto();
+        renderRubyText([]);
         setStatus("Input cleared.");
       });
 
       clearWordsBtn.addEventListener("click", () => {
         const confirmed = confirm("Clear all saved words?");
-
         if (!confirmed) return;
 
         localStorage.removeItem(STORAGE_KEY);
@@ -574,18 +438,44 @@
       });
     }
 
+    function loadKuromojiScript() {
+      const script = document.createElement("script");
+
+      script.src = "https://cdn.jsdelivr.net/npm/kuromoji@0.1.2/build/kuromoji.js";
+
+      script.onload = () => {
+        setStatus("Tokenizer library loaded. Loading dictionary...");
+        initTokenizer();
+      };
+
+      script.onerror = () => {
+        showDebugError("Failed to load Kuromoji from jsDelivr. Trying unpkg...");
+
+        const fallback = document.createElement("script");
+        fallback.src = "https://unpkg.com/kuromoji@0.1.2/build/kuromoji.js";
+
+        fallback.onload = () => {
+          setStatus("Tokenizer library loaded from fallback. Loading dictionary...");
+          initTokenizer();
+        };
+
+        fallback.onerror = () => {
+          setStatus("Tokenizer library failed to load.");
+          showDebugError(
+            "Kuromoji could not load from jsDelivr or unpkg. The UI works, but furigana generation cannot run."
+          );
+        };
+
+        document.body.appendChild(fallback);
+      };
+
+      document.body.appendChild(script);
+    }
+
     function initTokenizer() {
-      setStatus("Loading Japanese tokenizer...");
-
       if (!window.kuromoji) {
-        setStatus(
-          "Tokenizer library failed to load. The UI works, but furigana generation is not available."
-        );
-
-        showDebugError(
-          "kuromoji is not defined. The CDN script did not load. Try refreshing, or use local Kuromoji files."
-        );
-
+        setStatus("Tokenizer library is missing.");
+        showDebugError("window.kuromoji is undefined after script load.");
         return;
       }
 
@@ -595,50 +485,28 @@
         })
         .build((err, builtTokenizer) => {
           if (err) {
-            console.error(err);
-
-            setStatus(
-              "Failed to load tokenizer dictionary. The UI works, but furigana generation is not available."
-            );
-
+            setStatus("Tokenizer dictionary failed to load.");
             showDebugError(
-              "Failed to load Kuromoji dictionary. This is usually a CDN or network path issue."
+              "Kuromoji dictionary failed to load. This is usually a CDN dictionary path problem."
             );
-
             return;
           }
 
           tokenizer = builtTokenizer;
           generateBtn.disabled = false;
-          setStatus("Ready. Add Japanese text and generate the reading page.");
+          setStatus("Ready. Paste Japanese text and generate the reading page.");
         });
     }
 
-    function getPageIndexFromHash() {
-      const pageNames = ["text", "reading", "words"];
-      const index = pageNames.indexOf(location.hash.slice(1));
-
-      return index === -1 ? 0 : index;
-    }
-
     function showPage(pageIndex, updateHash = true) {
-      const nextIndex = Math.max(0, Math.min(appPageEls.length - 1, pageIndex));
-
-      pageScrollPositions[currentPageIndex] = window.scrollY;
-      currentPageIndex = nextIndex;
+      currentPageIndex = Math.max(0, Math.min(appPageEls.length - 1, pageIndex));
 
       appPageEls.forEach((page, index) => {
-        const isActive = index === currentPageIndex;
-
-        page.classList.toggle("active", isActive);
-        page.hidden = !isActive;
+        page.classList.toggle("active", index === currentPageIndex);
       });
 
       navButtons.forEach((button, index) => {
-        const isActive = index === currentPageIndex;
-
-        button.classList.toggle("active", isActive);
-        button.toggleAttribute("aria-current", isActive);
+        button.classList.toggle("active", index === currentPageIndex);
       });
 
       const title = appPageEls[currentPageIndex].dataset.title;
@@ -647,128 +515,23 @@
       if (updateHash) {
         const pageNames = ["text", "reading", "words"];
         const nextHash = `#${pageNames[currentPageIndex]}`;
-
         if (location.hash !== nextHash) {
           history.pushState(null, "", nextHash);
         }
       }
 
-      requestAnimationFrame(() => {
-        window.scrollTo(0, pageScrollPositions[currentPageIndex]);
-      });
-    }
-
-    function handleTouchStart(event) {
-      if (event.touches.length !== 1) return;
-
-      if (event.target.closest("textarea, input, select, button, a")) {
-        touchStartX = null;
-        touchStartY = null;
-        return;
-      }
-
-      touchStartX = event.touches[0].clientX;
-      touchStartY = event.touches[0].clientY;
-    }
-
-    function handleTouchEnd(event) {
-      if (touchStartX === null || event.changedTouches.length !== 1) return;
-
-      const deltaX = event.changedTouches[0].clientX - touchStartX;
-      const deltaY = event.changedTouches[0].clientY - touchStartY;
-
-      touchStartX = null;
-      touchStartY = null;
-
-      if (Math.abs(deltaX) < 55 || Math.abs(deltaX) < Math.abs(deltaY) * 1.2) {
-        return;
-      }
-
-      showPage(currentPageIndex + (deltaX < 0 ? 1 : -1));
-    }
-
-    function showPhotoPreview(imageFile) {
-      if (photoObjectUrl) {
-        URL.revokeObjectURL(photoObjectUrl);
-      }
-
-      photoObjectUrl = URL.createObjectURL(imageFile);
-      photoPreview.src = photoObjectUrl;
-      photoPreview.style.display = "block";
-    }
-
-    async function recognizePhotoText(imageFile) {
-      if (!window.Tesseract) {
-        alert(
-          "Photo recognition library did not load. Please use Apple Live Text and paste the text instead."
-        );
-
-        showDebugError("Tesseract is not available. Photo OCR cannot run.");
-        return;
-      }
-
-      isRecognizingPhoto = true;
-      takePhotoBtn.disabled = true;
-      takePhotoBtn.textContent = "Recognizing Text...";
-      setStatus("Preparing Japanese text recognition...");
-
-      try {
-        const result = await Tesseract.recognize(imageFile, textDirection.value, {
-          logger: (progress) => {
-            if (progress.status === "recognizing text") {
-              const percent = Math.round((progress.progress || 0) * 100);
-              setStatus(`Recognizing Japanese text... ${percent}%`);
-            }
-          },
-        });
-
-        const recognizedText = result.data.text.trim();
-
-        if (!recognizedText) {
-          setStatus("No text was found. Try a clearer photo or paste text manually.");
-          alert("No Japanese text was found in this photo.");
-          return;
-        }
-
-        inputTextEl.value = recognizedText;
-        inputTextEl.focus();
-
-        setStatus("Photo text is ready. Check mistakes, then generate the reading page.");
-      } catch (error) {
-        console.error(error);
-        showDebugError(error.message || String(error));
-
-        setStatus("Photo recognition failed. Use Apple Live Text and paste the text instead.");
-        alert("Could not recognize this photo. Please paste text manually.");
-      } finally {
-        isRecognizingPhoto = false;
-        takePhotoBtn.disabled = false;
-        takePhotoBtn.textContent = "Retake or Choose Another Photo";
-      }
-    }
-
-    function clearPhoto() {
-      photoInput.value = "";
-      photoPreview.removeAttribute("src");
-      photoPreview.style.display = "none";
-      takePhotoBtn.textContent = "Take or Choose Photo";
-
-      if (photoObjectUrl) {
-        URL.revokeObjectURL(photoObjectUrl);
-        photoObjectUrl = "";
-      }
+      window.scrollTo(0, 0);
     }
 
     function generateReadingPage(text) {
       if (!tokenizer) {
-        alert("Tokenizer is not ready. Please wait, refresh, or check the error message on the page.");
+        alert("Tokenizer is not ready yet. Check the red debug message on the page.");
         return;
       }
 
       setStatus("Generating furigana...");
 
       const tokens = tokenizer.tokenize(text);
-
       currentRubyTokens = buildRubyTokens(text, tokens);
 
       renderRubyText(currentRubyTokens);
@@ -776,8 +539,6 @@
       renderSavedWords();
 
       setStatus("Reading page is ready. Words were saved automatically.");
-
-      pageScrollPositions[1] = 0;
       showPage(1);
     }
 
@@ -787,8 +548,6 @@
 
       tokens.forEach((token) => {
         const surface = token.surface_form;
-
-        // kuromoji word_position is 1-based.
         const tokenStartIndex = token.word_position - 1;
         const tokenEndIndex = tokenStartIndex + surface.length;
 
@@ -806,7 +565,7 @@
         }
 
         baseTokens.push({
-          surface: surface,
+          surface,
           reading: getTokenReading(token),
           hasKanji: hasKanji(surface),
           dictionaryForm: token.basic_form,
@@ -866,37 +625,12 @@
       if (!current.hasKanji) return false;
       if (current.isGap || next.isGap) return false;
       if (!isOnlyHiragana(next.surface)) return false;
-
       if (current.endIndex !== next.startIndex) return false;
 
       const particlesAndStops = new Set([
-        "は",
-        "が",
-        "を",
-        "に",
-        "へ",
-        "で",
-        "と",
-        "の",
-        "も",
-        "や",
-        "か",
-        "ね",
-        "よ",
-        "ぞ",
-        "ぜ",
-        "わ",
-        "から",
-        "まで",
-        "より",
-        "ほど",
-        "だけ",
-        "しか",
-        "など",
-        "でも",
-        "なら",
-        "ので",
-        "のに",
+        "は", "が", "を", "に", "へ", "で", "と", "の", "も", "や", "か",
+        "ね", "よ", "ぞ", "ぜ", "わ", "から", "まで", "より", "ほど",
+        "だけ", "しか", "など", "でも", "なら", "ので", "のに",
       ]);
 
       if (particlesAndStops.has(next.surface)) return false;
@@ -922,15 +656,12 @@
       tokens.forEach((token) => {
         if (token.hasKanji && token.reading && showFurigana) {
           const ruby = document.createElement("ruby");
-
-          const rbText = document.createTextNode(token.surface);
           const rt = document.createElement("rt");
 
           rt.textContent = token.reading;
 
-          ruby.appendChild(rbText);
+          ruby.appendChild(document.createTextNode(token.surface));
           ruby.appendChild(rt);
-
           readingTextEl.appendChild(ruby);
         } else {
           readingTextEl.appendChild(document.createTextNode(token.surface));
@@ -1007,7 +738,6 @@
 
         item.appendChild(text);
         item.appendChild(deleteButton);
-
         savedWordsEl.appendChild(item);
       });
     }
@@ -1076,7 +806,6 @@
 
     function showDebugError(message) {
       if (!debugLogEl) return;
-
       debugLogEl.textContent = `Error: ${message}`;
     }
   </script>
