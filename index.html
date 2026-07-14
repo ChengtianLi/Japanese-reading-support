@@ -419,11 +419,6 @@
 
     generateBtn.disabled = true;
 
-    initTokenizer();
-    renderSavedWords();
-    renderRubyText([]);
-    initializeNavigation();
-
     function initializeNavigation() {
       navButtons.forEach((button) => {
         button.addEventListener("click", () => {
@@ -506,7 +501,12 @@
     function initTokenizer() {
       setStatus("Loading Japanese tokenizer...");
 
-      kuromoji
+      if (!window.kuromoji) {
+        setStatus("The Japanese tokenizer could not load. Check your connection, then reload the page.");
+        return;
+      }
+
+      window.kuromoji
         .builder({
           dicPath: "https://cdn.jsdelivr.net/npm/kuromoji@0.1.2/dict/",
         })
@@ -633,7 +633,7 @@
 
       if (!confirmed) return;
 
-      localStorage.removeItem(STORAGE_KEY);
+      removeSavedWords();
       renderSavedWords();
     });
 
@@ -874,7 +874,7 @@
         }
       });
 
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(savedWords));
+      persistSavedWords(savedWords);
     }
 
     function renderSavedWords() {
@@ -927,19 +927,38 @@
         target.deleted = true;
       }
 
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(savedWords));
+      persistSavedWords(savedWords);
       renderSavedWords();
     }
 
     function loadSavedWords() {
-      const raw = localStorage.getItem(STORAGE_KEY);
-
-      if (!raw) return [];
-
       try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return [];
         return JSON.parse(raw);
-      } catch {
+      } catch (error) {
+        console.error("Saved words could not be loaded.", error);
         return [];
+      }
+    }
+
+    function persistSavedWords(savedWords) {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(savedWords));
+        return true;
+      } catch (error) {
+        console.error("Saved words could not be stored.", error);
+        setStatus("This browser blocked local word storage. The reading page will still work.");
+        return false;
+      }
+    }
+
+    function removeSavedWords() {
+      try {
+        localStorage.removeItem(STORAGE_KEY);
+      } catch (error) {
+        console.error("Saved words could not be cleared.", error);
+        setStatus("This browser blocked local word storage.");
       }
     }
 
@@ -980,6 +999,13 @@
     function setStatus(message) {
       statusEl.textContent = message;
     }
+
+    // Initialize the interface before loading optional external processing tools.
+    // This keeps navigation and text entry usable if a CDN resource is unavailable.
+    initializeNavigation();
+    renderRubyText([]);
+    renderSavedWords();
+    initTokenizer();
   </script>
 </body>
 </html>
