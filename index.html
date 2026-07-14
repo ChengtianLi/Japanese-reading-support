@@ -239,7 +239,7 @@
   </header>
 
   <main id="appPages">
-    <p class="version">Version: no-photo-debug-20260714-01</p>
+    <p class="version">Version: es5-debug-20260714-02</p>
 
     <div id="textPage" class="app-page active" data-title="Text">
       <p class="intro">
@@ -318,36 +318,44 @@
   </nav>
 
   <script>
-    const inputTextEl = document.getElementById("inputText");
-    const generateBtn = document.getElementById("generateBtn");
-    const pasteBtn = document.getElementById("pasteBtn");
-    const clearInputBtn = document.getElementById("clearInputBtn");
-    const statusEl = document.getElementById("status");
-    const debugLogEl = document.getElementById("debugLog");
-    const readingTextEl = document.getElementById("readingText");
-    const savedWordsEl = document.getElementById("savedWords");
-    const clearWordsBtn = document.getElementById("clearWordsBtn");
-    const increaseTextBtn = document.getElementById("increaseTextBtn");
-    const decreaseTextBtn = document.getElementById("decreaseTextBtn");
-    const toggleFuriganaBtn = document.getElementById("toggleFuriganaBtn");
-    const appPageEls = [...document.querySelectorAll(".app-page")];
-    const navButtons = [...document.querySelectorAll(".nav-btn")];
-    const pageIndicator = document.getElementById("pageIndicator");
+    var inputTextEl = document.getElementById("inputText");
+    var generateBtn = document.getElementById("generateBtn");
+    var pasteBtn = document.getElementById("pasteBtn");
+    var clearInputBtn = document.getElementById("clearInputBtn");
+    var statusEl = document.getElementById("status");
+    var debugLogEl = document.getElementById("debugLog");
+    var readingTextEl = document.getElementById("readingText");
+    var savedWordsEl = document.getElementById("savedWords");
+    var clearWordsBtn = document.getElementById("clearWordsBtn");
+    var increaseTextBtn = document.getElementById("increaseTextBtn");
+    var decreaseTextBtn = document.getElementById("decreaseTextBtn");
+    var toggleFuriganaBtn = document.getElementById("toggleFuriganaBtn");
+    var appPageEls = Array.prototype.slice.call(document.querySelectorAll(".app-page"));
+    var navButtons = Array.prototype.slice.call(document.querySelectorAll(".nav-btn"));
+    var pageIndicator = document.getElementById("pageIndicator");
 
-    const STORAGE_KEY = "furigana-reading-support-saved-words";
+    var STORAGE_KEY = "furigana-reading-support-saved-words";
 
-    let tokenizer = null;
-    let currentRubyTokens = [];
-    let showFurigana = true;
-    let readingFontSize = 22;
-    let currentPageIndex = 0;
+    var tokenizer = null;
+    var currentRubyTokens = [];
+    var showFurigana = true;
+    var readingFontSize = 22;
+    var currentPageIndex = 0;
 
-    window.addEventListener("error", (event) => {
+    window.addEventListener("error", function (event) {
       showDebugError(event.message);
     });
 
-    window.addEventListener("unhandledrejection", (event) => {
-      showDebugError(event.reason?.message || String(event.reason));
+    window.addEventListener("unhandledrejection", function (event) {
+      var reasonMessage = "";
+
+      if (event.reason && event.reason.message) {
+        reasonMessage = event.reason.message;
+      } else {
+        reasonMessage = String(event.reason);
+      }
+
+      showDebugError(reasonMessage);
     });
 
     startApp();
@@ -365,18 +373,24 @@
     }
 
     function initializeNavigation() {
-      navButtons.forEach((button) => {
-        button.addEventListener("click", () => {
-          showPage(Number(button.dataset.page));
-        });
-      });
+      var i;
+
+      for (i = 0; i < navButtons.length; i++) {
+        addNavClickHandler(navButtons[i]);
+      }
 
       showPage(0, false);
     }
 
+    function addNavClickHandler(button) {
+      button.addEventListener("click", function () {
+        showPage(Number(button.getAttribute("data-page")));
+      });
+    }
+
     function initializeActions() {
-      generateBtn.addEventListener("click", () => {
-        const text = inputTextEl.value.trim();
+      generateBtn.addEventListener("click", function () {
+        var text = inputTextEl.value.trim();
 
         if (!text) {
           alert("Please paste Japanese text first.");
@@ -386,80 +400,84 @@
         generateReadingPage(text);
       });
 
-      pasteBtn.addEventListener("click", async () => {
-        try {
-          if (!navigator.clipboard || !navigator.clipboard.readText) {
-            alert("Clipboard API is not available. Please paste manually.");
-            return;
-          }
-
-          const clipboardText = await navigator.clipboard.readText();
-          inputTextEl.value = clipboardText;
-          setStatus("Text pasted from clipboard.");
-        } catch (error) {
-          showDebugError(error.message || String(error));
-          alert("Clipboard paste failed. Please paste manually.");
+      pasteBtn.addEventListener("click", function () {
+        if (!navigator.clipboard || !navigator.clipboard.readText) {
+          alert("Clipboard API is not available. Please paste manually.");
+          return;
         }
+
+        navigator.clipboard.readText()
+          .then(function (clipboardText) {
+            inputTextEl.value = clipboardText;
+            setStatus("Text pasted from clipboard.");
+          })
+          .catch(function (error) {
+            showDebugError(error.message || String(error));
+            alert("Clipboard paste failed. Please paste manually.");
+          });
       });
 
-      clearInputBtn.addEventListener("click", () => {
+      clearInputBtn.addEventListener("click", function () {
         inputTextEl.value = "";
         currentRubyTokens = [];
         renderRubyText([]);
         setStatus("Input cleared.");
       });
 
-      clearWordsBtn.addEventListener("click", () => {
-        const confirmed = confirm("Clear all saved words?");
+      clearWordsBtn.addEventListener("click", function () {
+        var confirmed = confirm("Clear all saved words?");
+
         if (!confirmed) return;
 
         localStorage.removeItem(STORAGE_KEY);
         renderSavedWords();
       });
 
-      increaseTextBtn.addEventListener("click", () => {
+      increaseTextBtn.addEventListener("click", function () {
         readingFontSize += 2;
         updateReadingFontSize();
       });
 
-      decreaseTextBtn.addEventListener("click", () => {
+      decreaseTextBtn.addEventListener("click", function () {
         readingFontSize = Math.max(14, readingFontSize - 2);
         updateReadingFontSize();
       });
 
-      toggleFuriganaBtn.addEventListener("click", () => {
+      toggleFuriganaBtn.addEventListener("click", function () {
         showFurigana = !showFurigana;
 
-        toggleFuriganaBtn.textContent = showFurigana
-          ? "Hide Furigana"
-          : "Show Furigana";
+        if (showFurigana) {
+          toggleFuriganaBtn.textContent = "Hide Furigana";
+        } else {
+          toggleFuriganaBtn.textContent = "Show Furigana";
+        }
 
         renderRubyText(currentRubyTokens);
       });
     }
 
     function loadKuromojiScript() {
-      const script = document.createElement("script");
+      var script = document.createElement("script");
 
       script.src = "https://cdn.jsdelivr.net/npm/kuromoji@0.1.2/build/kuromoji.js";
 
-      script.onload = () => {
+      script.onload = function () {
         setStatus("Tokenizer library loaded. Loading dictionary...");
         initTokenizer();
       };
 
-      script.onerror = () => {
+      script.onerror = function () {
         showDebugError("Failed to load Kuromoji from jsDelivr. Trying unpkg...");
 
-        const fallback = document.createElement("script");
+        var fallback = document.createElement("script");
         fallback.src = "https://unpkg.com/kuromoji@0.1.2/build/kuromoji.js";
 
-        fallback.onload = () => {
+        fallback.onload = function () {
           setStatus("Tokenizer library loaded from fallback. Loading dictionary...");
           initTokenizer();
         };
 
-        fallback.onerror = () => {
+        fallback.onerror = function () {
           setStatus("Tokenizer library failed to load.");
           showDebugError(
             "Kuromoji could not load from jsDelivr or unpkg. The UI works, but furigana generation cannot run."
@@ -481,9 +499,9 @@
 
       kuromoji
         .builder({
-          dicPath: "https://cdn.jsdelivr.net/npm/kuromoji@0.1.2/dict/",
+          dicPath: "https://cdn.jsdelivr.net/npm/kuromoji@0.1.2/dict/"
         })
-        .build((err, builtTokenizer) => {
+        .build(function (err, builtTokenizer) {
           if (err) {
             setStatus("Tokenizer dictionary failed to load.");
             showDebugError(
@@ -498,23 +516,40 @@
         });
     }
 
-    function showPage(pageIndex, updateHash = true) {
+    function showPage(pageIndex, updateHash) {
+      var i;
+      var title;
+      var pageNames;
+      var nextHash;
+
+      if (updateHash === undefined) updateHash = true;
+
       currentPageIndex = Math.max(0, Math.min(appPageEls.length - 1, pageIndex));
 
-      appPageEls.forEach((page, index) => {
-        page.classList.toggle("active", index === currentPageIndex);
-      });
+      for (i = 0; i < appPageEls.length; i++) {
+        if (i === currentPageIndex) {
+          appPageEls[i].classList.add("active");
+        } else {
+          appPageEls[i].classList.remove("active");
+        }
+      }
 
-      navButtons.forEach((button, index) => {
-        button.classList.toggle("active", index === currentPageIndex);
-      });
+      for (i = 0; i < navButtons.length; i++) {
+        if (i === currentPageIndex) {
+          navButtons[i].classList.add("active");
+        } else {
+          navButtons[i].classList.remove("active");
+        }
+      }
 
-      const title = appPageEls[currentPageIndex].dataset.title;
-      pageIndicator.textContent = `${title} · ${currentPageIndex + 1} of ${appPageEls.length}`;
+      title = appPageEls[currentPageIndex].getAttribute("data-title");
+      pageIndicator.textContent =
+        title + " · " + (currentPageIndex + 1) + " of " + appPageEls.length;
 
       if (updateHash) {
-        const pageNames = ["text", "reading", "words"];
-        const nextHash = `#${pageNames[currentPageIndex]}`;
+        pageNames = ["text", "reading", "words"];
+        nextHash = "#" + pageNames[currentPageIndex];
+
         if (location.hash !== nextHash) {
           history.pushState(null, "", nextHash);
         }
@@ -524,6 +559,8 @@
     }
 
     function generateReadingPage(text) {
+      var tokens;
+
       if (!tokenizer) {
         alert("Tokenizer is not ready yet. Check the red debug message on the page.");
         return;
@@ -531,7 +568,7 @@
 
       setStatus("Generating furigana...");
 
-      const tokens = tokenizer.tokenize(text);
+      tokens = tokenizer.tokenize(text);
       currentRubyTokens = buildRubyTokens(text, tokens);
 
       renderRubyText(currentRubyTokens);
@@ -543,13 +580,19 @@
     }
 
     function buildRubyTokens(originalText, tokens) {
-      const baseTokens = [];
-      let currentIndex = 0;
+      var baseTokens = [];
+      var currentIndex = 0;
+      var i;
+      var token;
+      var surface;
+      var tokenStartIndex;
+      var tokenEndIndex;
 
-      tokens.forEach((token) => {
-        const surface = token.surface_form;
-        const tokenStartIndex = token.word_position - 1;
-        const tokenEndIndex = tokenStartIndex + surface.length;
+      for (i = 0; i < tokens.length; i++) {
+        token = tokens[i];
+        surface = token.surface_form;
+        tokenStartIndex = token.word_position - 1;
+        tokenEndIndex = tokenStartIndex + surface.length;
 
         if (tokenStartIndex > currentIndex) {
           baseTokens.push({
@@ -560,23 +603,23 @@
             partOfSpeech: "",
             startIndex: currentIndex,
             endIndex: tokenStartIndex,
-            isGap: true,
+            isGap: true
           });
         }
 
         baseTokens.push({
-          surface,
+          surface: surface,
           reading: getTokenReading(token),
           hasKanji: hasKanji(surface),
           dictionaryForm: token.basic_form,
           partOfSpeech: token.pos,
           startIndex: tokenStartIndex,
           endIndex: tokenEndIndex,
-          isGap: false,
+          isGap: false
         });
 
         currentIndex = tokenEndIndex;
-      });
+      }
 
       if (currentIndex < originalText.length) {
         baseTokens.push({
@@ -587,7 +630,7 @@
           partOfSpeech: "",
           startIndex: currentIndex,
           endIndex: originalText.length,
-          isGap: true,
+          isGap: true
         });
       }
 
@@ -595,16 +638,19 @@
     }
 
     function mergeOkuriganaTokens(tokens) {
-      const mergedTokens = [];
+      var mergedTokens = [];
+      var i;
+      var current;
+      var next;
 
-      for (let i = 0; i < tokens.length; i++) {
-        let current = { ...tokens[i] };
+      for (i = 0; i < tokens.length; i++) {
+        current = copyToken(tokens[i]);
 
         while (
           i + 1 < tokens.length &&
           shouldAttachNextHiraganaToken(current, tokens[i + 1])
         ) {
-          const next = tokens[i + 1];
+          next = tokens[i + 1];
 
           current.surface += next.surface;
           current.reading += next.reading || next.surface;
@@ -621,19 +667,34 @@
       return mergedTokens;
     }
 
+    function copyToken(token) {
+      return {
+        surface: token.surface,
+        reading: token.reading,
+        hasKanji: token.hasKanji,
+        dictionaryForm: token.dictionaryForm,
+        partOfSpeech: token.partOfSpeech,
+        startIndex: token.startIndex,
+        endIndex: token.endIndex,
+        isGap: token.isGap
+      };
+    }
+
     function shouldAttachNextHiraganaToken(current, next) {
+      var particlesAndStops;
+
       if (!current.hasKanji) return false;
       if (current.isGap || next.isGap) return false;
       if (!isOnlyHiragana(next.surface)) return false;
       if (current.endIndex !== next.startIndex) return false;
 
-      const particlesAndStops = new Set([
+      particlesAndStops = [
         "は", "が", "を", "に", "へ", "で", "と", "の", "も", "や", "か",
         "ね", "よ", "ぞ", "ぜ", "わ", "から", "まで", "より", "ほど",
-        "だけ", "しか", "など", "でも", "なら", "ので", "のに",
-      ]);
+        "だけ", "しか", "など", "でも", "なら", "ので", "のに"
+      ];
 
-      if (particlesAndStops.has(next.surface)) return false;
+      if (particlesAndStops.indexOf(next.surface) !== -1) return false;
 
       if (current.partOfSpeech === "名詞" && next.partOfSpeech === "助動詞") {
         return false;
@@ -646,6 +707,11 @@
     }
 
     function renderRubyText(tokens) {
+      var i;
+      var token;
+      var ruby;
+      var rt;
+
       readingTextEl.innerHTML = "";
 
       if (!tokens || tokens.length === 0) {
@@ -653,10 +719,12 @@
         return;
       }
 
-      tokens.forEach((token) => {
+      for (i = 0; i < tokens.length; i++) {
+        token = tokens[i];
+
         if (token.hasKanji && token.reading && showFurigana) {
-          const ruby = document.createElement("ruby");
-          const rt = document.createElement("rt");
+          ruby = document.createElement("ruby");
+          rt = document.createElement("rt");
 
           rt.textContent = token.reading;
 
@@ -666,85 +734,116 @@
         } else {
           readingTextEl.appendChild(document.createTextNode(token.surface));
         }
-      });
+      }
 
       updateReadingFontSize();
     }
 
     function saveExtractedWords(tokens) {
-      const savedWords = loadSavedWords();
+      var savedWords = loadSavedWords();
+      var i;
+      var token;
+      var newWord;
+      var existingWord;
+      var now = new Date().toISOString();
 
-      const wordsFromCurrentText = tokens
-        .filter((token) => token.hasKanji && token.reading)
-        .map((token) => ({
+      for (i = 0; i < tokens.length; i++) {
+        token = tokens[i];
+
+        if (!token.hasKanji || !token.reading) continue;
+
+        newWord = {
           id: createWordId(token.surface, token.reading),
           surface: token.surface,
           reading: token.reading,
           dictionaryForm: token.dictionaryForm || token.surface,
           partOfSpeech: token.partOfSpeech || "",
-          createdAt: new Date().toISOString(),
-          lastSeenAt: new Date().toISOString(),
-          deleted: false,
-        }));
+          createdAt: now,
+          lastSeenAt: now,
+          deleted: false
+        };
 
-      wordsFromCurrentText.forEach((newWord) => {
-        const existingWord = savedWords.find((word) => word.id === newWord.id);
+        existingWord = findWordById(savedWords, newWord.id);
 
         if (existingWord) {
           existingWord.deleted = false;
-          existingWord.lastSeenAt = new Date().toISOString();
+          existingWord.lastSeenAt = now;
         } else {
           savedWords.push(newWord);
         }
-      });
+      }
 
       localStorage.setItem(STORAGE_KEY, JSON.stringify(savedWords));
     }
 
+    function findWordById(words, id) {
+      var i;
+
+      for (i = 0; i < words.length; i++) {
+        if (words[i].id === id) {
+          return words[i];
+        }
+      }
+
+      return null;
+    }
+
     function renderSavedWords() {
-      const savedWords = loadSavedWords().filter((word) => !word.deleted);
+      var savedWords = loadSavedWords();
+      var visibleWords = [];
+      var i;
 
       savedWordsEl.innerHTML = "";
 
-      if (savedWords.length === 0) {
+      for (i = 0; i < savedWords.length; i++) {
+        if (!savedWords[i].deleted) {
+          visibleWords.push(savedWords[i]);
+        }
+      }
+
+      if (visibleWords.length === 0) {
         savedWordsEl.innerHTML = '<p class="empty">No saved words yet.</p>';
         return;
       }
 
-      savedWords.forEach((word) => {
-        const item = document.createElement("div");
-        item.className = "word-item";
+      for (i = 0; i < visibleWords.length; i++) {
+        renderOneSavedWord(visibleWords[i]);
+      }
+    }
 
-        const text = document.createElement("div");
-        text.className = "word-main";
+    function renderOneSavedWord(word) {
+      var item = document.createElement("div");
+      var text = document.createElement("div");
+      var surface = document.createElement("strong");
+      var reading = document.createElement("span");
+      var deleteButton = document.createElement("button");
 
-        const surface = document.createElement("strong");
-        surface.textContent = word.surface;
+      item.className = "word-item";
+      text.className = "word-main";
 
-        const reading = document.createElement("span");
-        reading.className = "word-reading";
-        reading.textContent = word.reading;
+      surface.textContent = word.surface;
 
-        text.appendChild(surface);
-        text.appendChild(reading);
+      reading.className = "word-reading";
+      reading.textContent = word.reading;
 
-        const deleteButton = document.createElement("button");
-        deleteButton.className = "secondary-btn";
-        deleteButton.textContent = "Delete";
+      text.appendChild(surface);
+      text.appendChild(reading);
 
-        deleteButton.addEventListener("click", () => {
-          deleteSavedWord(word.id);
-        });
+      deleteButton.className = "secondary-btn";
+      deleteButton.textContent = "Delete";
 
-        item.appendChild(text);
-        item.appendChild(deleteButton);
-        savedWordsEl.appendChild(item);
+      deleteButton.addEventListener("click", function () {
+        deleteSavedWord(word.id);
       });
+
+      item.appendChild(text);
+      item.appendChild(deleteButton);
+      savedWordsEl.appendChild(item);
     }
 
     function deleteSavedWord(id) {
-      const savedWords = loadSavedWords();
-      const target = savedWords.find((word) => word.id === id);
+      var savedWords = loadSavedWords();
+      var target = findWordById(savedWords, id);
 
       if (target) {
         target.deleted = true;
@@ -755,19 +854,19 @@
     }
 
     function loadSavedWords() {
-      const raw = localStorage.getItem(STORAGE_KEY);
+      var raw = localStorage.getItem(STORAGE_KEY);
 
       if (!raw) return [];
 
       try {
         return JSON.parse(raw);
-      } catch {
+      } catch (error) {
         return [];
       }
     }
 
     function createWordId(surface, reading) {
-      return `${surface}__${reading}`;
+      return surface + "__" + reading;
     }
 
     function hasKanji(text) {
@@ -791,13 +890,13 @@
     }
 
     function katakanaToHiragana(text) {
-      return text.replace(/[\u30a1-\u30f6]/g, (char) =>
-        String.fromCharCode(char.charCodeAt(0) - 0x60)
-      );
+      return text.replace(/[\u30a1-\u30f6]/g, function (char) {
+        return String.fromCharCode(char.charCodeAt(0) - 0x60);
+      });
     }
 
     function updateReadingFontSize() {
-      readingTextEl.style.fontSize = `${readingFontSize}px`;
+      readingTextEl.style.fontSize = readingFontSize + "px";
     }
 
     function setStatus(message) {
@@ -806,7 +905,7 @@
 
     function showDebugError(message) {
       if (!debugLogEl) return;
-      debugLogEl.textContent = `Error: ${message}`;
+      debugLogEl.textContent = "Error: " + message;
     }
   </script>
 </body>
