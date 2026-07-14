@@ -6,12 +6,6 @@
 
   <title>Japanese Furigana Reading Support</title>
 
-  <!-- Japanese tokenizer -->
-  <script src="https://cdn.jsdelivr.net/npm/kuromoji@0.1.2/build/kuromoji.js"></script>
-
-  <!-- In-browser OCR for photos -->
-  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
-
   <style>
     body {
       font-family: system-ui, -apple-system, BlinkMacSystemFont, "Hiragino Sans",
@@ -178,6 +172,14 @@
       margin-top: 10px;
     }
 
+    .script-warning {
+      padding: 10px;
+      border-radius: 8px;
+      color: #842029;
+      background: #f8d7da;
+      border: 1px solid #f1aeb5;
+    }
+
     #readingText {
       font-size: 22px;
       line-height: 2.4;
@@ -329,7 +331,10 @@
         <button id="clearInputBtn" class="secondary-btn">Clear Text</button>
       </div>
 
-      <div id="status" class="status">Loading Japanese tokenizer...</div>
+      <div id="status" class="status">Starting app...</div>
+      <div id="scriptWarning" class="status script-warning">
+        JavaScript has not started. If this message remains visible, reload the page in Safari or Chrome rather than an in-app preview.
+      </div>
       </section>
     </div>
 
@@ -384,6 +389,8 @@
   </nav>
 
   <script>
+    document.getElementById("scriptWarning").hidden = true;
+
     const inputTextEl = document.getElementById("inputText");
     const generateBtn = document.getElementById("generateBtn");
     const pasteBtn = document.getElementById("pasteBtn");
@@ -412,6 +419,7 @@
     let readingFontSize = 22;
     let photoObjectUrl = "";
     let isRecognizingPhoto = false;
+    let tesseractLoadPromise = null;
     let currentPageIndex = 0;
     let touchStartX = null;
     let touchStartY = null;
@@ -498,11 +506,24 @@
       showPage(currentPageIndex + (deltaX < 0 ? 1 : -1));
     }
 
-    function initTokenizer() {
+    async function loadTokenizerLibrary() {
       setStatus("Loading Japanese tokenizer...");
 
-      if (!window.kuromoji) {
+      try {
+        await loadExternalScript(
+          "https://cdn.jsdelivr.net/npm/kuromoji@0.1.2/build/kuromoji.js",
+          "kuromoji-script"
+        );
+        initTokenizer();
+      } catch (error) {
+        console.error(error);
         setStatus("The Japanese tokenizer could not load. Check your connection, then reload the page.");
+      }
+    }
+
+    function initTokenizer() {
+      if (!window.kuromoji) {
+        setStatus("The Japanese tokenizer is unavailable. Reload the page to try again.");
         return;
       }
 
@@ -521,6 +542,52 @@
           generateBtn.disabled = false;
           setStatus("Ready. Add Japanese text and generate the reading page.");
         });
+    }
+
+    function loadExternalScript(src, id) {
+      return new Promise((resolve, reject) => {
+        if (document.getElementById(id)) {
+          resolve();
+          return;
+        }
+
+        const script = document.createElement("script");
+        const timeout = window.setTimeout(() => {
+          script.remove();
+          reject(new Error(`Timed out while loading ${src}`));
+        }, 20000);
+
+        script.id = id;
+        script.src = src;
+        script.async = true;
+        script.addEventListener("load", () => {
+          window.clearTimeout(timeout);
+          resolve();
+        });
+        script.addEventListener("error", () => {
+          window.clearTimeout(timeout);
+          script.remove();
+          reject(new Error(`Failed to load ${src}`));
+        });
+
+        document.head.appendChild(script);
+      });
+    }
+
+    function ensureTesseractLoaded() {
+      if (window.Tesseract) return Promise.resolve();
+
+      if (!tesseractLoadPromise) {
+        tesseractLoadPromise = loadExternalScript(
+          "https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js",
+          "tesseract-script"
+        ).catch((error) => {
+          tesseractLoadPromise = null;
+          throw error;
+        });
+      }
+
+      return tesseractLoadPromise;
     }
 
     generateBtn.addEventListener("click", () => {
@@ -574,17 +641,16 @@
     }
 
     async function recognizePhotoText(imageFile) {
-      if (!window.Tesseract) {
-        alert("Photo text recognition could not load. Please check your internet connection and try again.");
-        return;
-      }
-
       isRecognizingPhoto = true;
       takePhotoBtn.disabled = true;
-      takePhotoBtn.textContent = "Recognizing Text...";
-      setStatus("Preparing Japanese text recognition...");
+      takePhotoBtn.textContent = "Loading Photo Reader...";
+      setStatus("Loading Japanese photo recognition...");
 
       try {
+        await ensureTesseractLoaded();
+        takePhotoBtn.textContent = "Recognizing Text...";
+        setStatus("Preparing Japanese text recognition...");
+
         const result = await Tesseract.recognize(imageFile, textDirection.value, {
           logger: (progress) => {
             if (progress.status === "recognizing text") {
@@ -1005,7 +1071,7 @@
     initializeNavigation();
     renderRubyText([]);
     renderSavedWords();
-    initTokenizer();
+    loadTokenizerLibrary();
   </script>
 </body>
 </html>
