@@ -6,6 +6,9 @@
 
   <title>Japanese Reading Support</title>
 
+  <!-- Local Kuromoji file from your own repository -->
+  <script src="./lib/kuromoji.js"></script>
+
   <style>
     body {
       font-family: system-ui, -apple-system, BlinkMacSystemFont, "Hiragino Sans",
@@ -239,7 +242,7 @@
   </header>
 
   <main id="appPages">
-    <p class="version">Version: es5-debug-20260714-02</p>
+    <p class="version">Version: local-kuromoji-20260714-01</p>
 
     <div id="textPage" class="app-page active" data-title="Text">
       <p class="intro">
@@ -255,7 +258,7 @@
         ></textarea>
 
         <div class="controls">
-          <button id="generateBtn" disabled>Generate Reading Page</button>
+          <button id="generateBtn">Generate Reading Page</button>
           <button id="pasteBtn" class="secondary-btn">Paste From Clipboard</button>
           <button id="clearInputBtn" class="secondary-btn">Clear Text</button>
         </div>
@@ -337,6 +340,7 @@
     var STORAGE_KEY = "furigana-reading-support-saved-words";
 
     var tokenizer = null;
+    var isTokenizerLoading = false;
     var currentRubyTokens = [];
     var showFurigana = true;
     var readingFontSize = 22;
@@ -361,15 +365,14 @@
     startApp();
 
     function startApp() {
-      setStatus("JavaScript is running. Initializing UI...");
+      setStatus("JavaScript is running. UI is ready.");
 
       initializeNavigation();
       initializeActions();
       renderSavedWords();
       renderRubyText([]);
 
-      setStatus("UI is ready. Loading Japanese tokenizer...");
-      loadKuromojiScript();
+      setStatus("Ready. Paste Japanese text and generate the reading page.");
     }
 
     function initializeNavigation() {
@@ -456,63 +459,70 @@
       });
     }
 
-    function loadKuromojiScript() {
-      var script = document.createElement("script");
+    function generateReadingPage(text) {
+      if (!tokenizer) {
+        loadLocalTokenizer(function () {
+          generateReadingPage(text);
+        });
 
-      script.src = "https://cdn.jsdelivr.net/npm/kuromoji@0.1.2/build/kuromoji.js";
-
-      script.onload = function () {
-        setStatus("Tokenizer library loaded. Loading dictionary...");
-        initTokenizer();
-      };
-
-      script.onerror = function () {
-        showDebugError("Failed to load Kuromoji from jsDelivr. Trying unpkg...");
-
-        var fallback = document.createElement("script");
-        fallback.src = "https://unpkg.com/kuromoji@0.1.2/build/kuromoji.js";
-
-        fallback.onload = function () {
-          setStatus("Tokenizer library loaded from fallback. Loading dictionary...");
-          initTokenizer();
-        };
-
-        fallback.onerror = function () {
-          setStatus("Tokenizer library failed to load.");
-          showDebugError(
-            "Kuromoji could not load from jsDelivr or unpkg. The UI works, but furigana generation cannot run."
-          );
-        };
-
-        document.body.appendChild(fallback);
-      };
-
-      document.body.appendChild(script);
-    }
-
-    function initTokenizer() {
-      if (!window.kuromoji) {
-        setStatus("Tokenizer library is missing.");
-        showDebugError("window.kuromoji is undefined after script load.");
         return;
       }
 
+      setStatus("Generating furigana...");
+
+      var tokens = tokenizer.tokenize(text);
+
+      currentRubyTokens = buildRubyTokens(text, tokens);
+
+      renderRubyText(currentRubyTokens);
+      saveExtractedWords(currentRubyTokens);
+      renderSavedWords();
+
+      setStatus("Reading page is ready. Words were saved automatically.");
+      showPage(1);
+    }
+
+    function loadLocalTokenizer(onReady) {
+      if (tokenizer) {
+        if (onReady) onReady();
+        return;
+      }
+
+      if (isTokenizerLoading) {
+        setStatus("Tokenizer is already loading. Please wait...");
+        return;
+      }
+
+      if (!window.kuromoji) {
+        setStatus("Tokenizer library is missing.");
+        showDebugError("window.kuromoji is undefined. Check that ./lib/kuromoji.js exists.");
+        return;
+      }
+
+      isTokenizerLoading = true;
+      generateBtn.disabled = true;
+      setStatus("Loading local Kuromoji dictionary from ./dict/ ...");
+
       kuromoji
         .builder({
-          dicPath: "https://cdn.jsdelivr.net/npm/kuromoji@0.1.2/dict/"
+          dicPath: "./dict/"
         })
         .build(function (err, builtTokenizer) {
+          isTokenizerLoading = false;
+          generateBtn.disabled = false;
+
           if (err) {
             setStatus("Tokenizer dictionary failed to load.");
             showDebugError(
-              "Kuromoji dictionary failed to load. This is usually a CDN dictionary path problem."
+              "Failed to load local dictionary. Check that ./dict/*.dat.gz files exist and are pushed to GitHub."
             );
             return;
           }
 
           tokenizer = builtTokenizer;
-          generateBtn.disabled = false;
-          setStatus("Ready. Paste Japanese text and generate the reading page.");
+          setStatus("Tokenizer ready.");
+
+          if (onReady) onReady();
         });
     }
 
@@ -556,27 +566,6 @@
       }
 
       window.scrollTo(0, 0);
-    }
-
-    function generateReadingPage(text) {
-      var tokens;
-
-      if (!tokenizer) {
-        alert("Tokenizer is not ready yet. Check the red debug message on the page.");
-        return;
-      }
-
-      setStatus("Generating furigana...");
-
-      tokens = tokenizer.tokenize(text);
-      currentRubyTokens = buildRubyTokens(text, tokens);
-
-      renderRubyText(currentRubyTokens);
-      saveExtractedWords(currentRubyTokens);
-      renderSavedWords();
-
-      setStatus("Reading page is ready. Words were saved automatically.");
-      showPage(1);
     }
 
     function buildRubyTokens(originalText, tokens) {
